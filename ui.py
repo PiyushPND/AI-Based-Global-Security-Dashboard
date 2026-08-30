@@ -5,9 +5,27 @@ def get_setting(name: str, default):
     return st.session_state.get(name, default)
 
 
+def get_setting_bool(name: str, default: bool = False) -> bool:
+    value = st.session_state.get(name, default)
+    if isinstance(value, str):
+        return value.lower() in {"1", "true", "yes", "on", "dark"}
+    return bool(value)
+
+
+def get_mapbox_style(style_name: str | None = None) -> str:
+    style_name = style_name or get_setting("map_style", "OpenStreetMap")
+    mapping = {
+        "OpenStreetMap": "open-street-map",
+        "Carto Positron": "carto-positron",
+        "Carto Dark": "carto-darkmatter",
+    }
+    return mapping.get(style_name, "open-street-map")
+
+
 def render_chart(figure, **kwargs) -> None:
     """Render charts with the style selected in Settings."""
     chart_style = get_setting("chart_style", "Plotly")
+    dark_display = st.session_state.get("dark_display", st.session_state.get("display_mode", "light") == "dark")
     palettes = {
         "Plotly": ["#357a4a", "#6b8f71", "#b56b17", "#315b75"],
         "Bar": ["#315b75", "#357a4a", "#b56b17", "#7b4f78"],
@@ -15,7 +33,7 @@ def render_chart(figure, **kwargs) -> None:
         "Pie": ["#357a4a", "#6b8f71", "#b56b17", "#315b75"],
     }
     figure.update_layout(
-        template="plotly_dark" if get_setting("display_mode", "light") == "dark" else "plotly_white",
+        template="plotly_dark" if dark_display else "plotly_white",
         colorway=palettes.get(chart_style, palettes["Plotly"]),
         font={"family": "DM Sans, sans-serif"},
         paper_bgcolor="rgba(0,0,0,0)",
@@ -25,7 +43,9 @@ def render_chart(figure, **kwargs) -> None:
 
 
 def apply_theme() -> None:
-    dark_display = st.session_state.get("display_mode", "light") == "dark"
+    dark_display = get_setting_bool("dark_display", st.session_state.get("display_mode", "light") == "dark")
+    if "display_mode" in st.session_state:
+        dark_display = st.session_state["display_mode"] == "dark"
     ink = "#e3eee1" if dark_display else "#1c2b1d"
     muted = "#a7b9a5" if dark_display else "#607261"
     line = "#3b4d3b" if dark_display else "#d5e1d2"
@@ -40,10 +60,11 @@ def apply_theme() -> None:
     css = """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0');
         :root { --ink:__INK__; --muted:__MUTED__; --line:__LINE__; --paper:__PAPER__; --panel:__PANEL__; --navy:__NAVY__; --teal:__TEAL__; }
         html, body, [class*="css"], button, input, textarea, select { font-family:'DM Sans', sans-serif !important; color:var(--ink); }
         [data-testid="stAppViewContainer"] *, [data-testid="stSidebar"] *, [data-testid="stHeader"] * { font-family:'DM Sans', sans-serif !important; }
-        [data-testid="stIconMaterial"] { font-family:'Material Symbols Rounded' !important; font-weight:400 !important; }
+        [data-testid="stIconMaterial"] { font-family:'Material Symbols Rounded' !important; font-weight:400 !important; font-variation-settings:'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; font-size:1.15rem !important; line-height:1 !important; color:inherit !important; }
         .stApp [data-testid="stSidebar"] a, .stApp [data-testid="stSidebar"] p, .stApp [data-testid="stSidebar"] span, .stApp [data-testid="stSidebar"] button { font-family:'DM Sans', sans-serif !important; }
         .stApp { background:var(--paper); color:var(--ink); }
         [data-testid="stMainBlockContainer"] { max-width:__CONTENT_WIDTH__; margin-left:auto; margin-right:auto; }
@@ -59,16 +80,25 @@ def apply_theme() -> None:
         [data-testid="stSidebarNav"] [role="link"], [data-testid="stSidebarNav"] [role="link"] p { color:__SIDEBAR_TEXT__ !important; font-family:'DM Sans', sans-serif !important; font-weight:600 !important; }
         [data-testid="stSidebarNav"] > div > div > p { color:__SIDEBAR_TEXT__ !important; font-family:'DM Sans', sans-serif !important; font-weight:700 !important; }
         [data-testid="stSidebar"] a:hover { background:#53663e; color:__SIDEBAR_TEXT__ !important; }
+        [data-testid="stSidebarNavLink"] > span:first-of-type { display:none !important; }
+        [data-testid="stSidebarNavLink"]::before {
+            content:"⌂"; font-family:'Segoe UI Symbol','Segoe UI Emoji','Segoe UI',sans-serif !important; font-size:1rem; line-height:1; color:__SIDEBAR_TEXT__ !important; margin-right:.5rem; display:inline-block; vertical-align:middle;
+        }
+        [data-testid="stSidebarNavLink"][href*="Global_Threat_Map"]::before { content:"◎"; }
+        [data-testid="stSidebarNavLink"][href*="Country_Analysis"]::before { content:"⚑"; }
+        [data-testid="stSidebarNavLink"][href*="Attack_Prediction"]::before { content:"✦"; }
+        [data-testid="stSidebarNavLink"][href*="Threat_Level"]::before { content:"▣"; }
+        [data-testid="stSidebarNavLink"][href*="Forecasting"]::before { content:"↗"; }
+        [data-testid="stSidebarNavLink"][href*="AI_Intelligence"]::before { content:"◌"; }
+        [data-testid="stSidebarNavLink"][href*="Data_Explorer"]::before { content:"▤"; }
+        [data-testid="stSidebarNavLink"][href*="Settings"]::before { content:"⚙"; }
         [data-testid="stSidebar"] [data-baseweb="select"] > div { background:__SIDEBAR_CONTROL__; border-color:#9cac8d; }
         [data-testid="stSidebar"] [data-baseweb="select"] *, [data-testid="stSidebar"] [role="combobox"] { color:__SIDEBAR_TEXT__ !important; }
         [data-testid="stSidebar"] input, [data-testid="stSidebar"] input:focus { background:transparent !important; color:__SIDEBAR_TEXT__ !important; caret-color:__SIDEBAR_TEXT__ !important; font-family:'DM Sans', sans-serif !important; }
         [data-testid="stSidebar"] input::placeholder { color:__SIDEBAR_TEXT__ !important; opacity:.8 !important; }
-        [data-testid="stSidebarCollapseButton"] [data-testid="stIconMaterial"], [data-testid="stSidebarCollapsedControl"] [data-testid="stIconMaterial"] { position:relative; display:inline-block; width:1.5rem; height:1.5rem; font-size:0 !important; color:transparent !important; font-family:'DM Sans', sans-serif !important; }
-        [data-testid="stSidebarCollapseButton"] [data-testid="stIconMaterial"]::before, [data-testid="stSidebarCollapseButton"] [data-testid="stIconMaterial"]::after, [data-testid="stSidebarCollapsedControl"] [data-testid="stIconMaterial"]::before, [data-testid="stSidebarCollapsedControl"] [data-testid="stIconMaterial"]::after { content:''; position:absolute; top:.5rem; width:.55rem; height:.55rem; border-left:2px solid __SIDEBAR_TEXT__; border-bottom:2px solid __SIDEBAR_TEXT__; transform:rotate(45deg); }
-        [data-testid="stSidebarCollapseButton"] [data-testid="stIconMaterial"]::before, [data-testid="stSidebarCollapsedControl"] [data-testid="stIconMaterial"]::before { left:.35rem; }
-        [data-testid="stSidebarCollapseButton"] [data-testid="stIconMaterial"]::after, [data-testid="stSidebarCollapsedControl"] [data-testid="stIconMaterial"]::after { left:.72rem; }
-        [data-testid="stNavSectionHeader"] [data-testid="stIconMaterial"] { position:relative; display:inline-block; width:1rem; height:1rem; font-size:0 !important; color:transparent !important; font-family:'DM Sans', sans-serif !important; text-indent:-9999px; overflow:hidden; }
-        [data-testid="stNavSectionHeader"] [data-testid="stIconMaterial"]::before { content:''; position:absolute; top:.25rem; left:.2rem; width:.5rem; height:.5rem; border-right:2px solid __SIDEBAR_TEXT__; border-bottom:2px solid __SIDEBAR_TEXT__; transform:rotate(45deg); }
+        [data-testid="stSidebarCollapseButton"] [data-testid="stIconMaterial"], [data-testid="stSidebarCollapsedControl"] [data-testid="stIconMaterial"] { position:relative; display:inline-block; width:1.5rem; height:1.5rem; font-size:1.2rem !important; color:inherit !important; font-family:'Material Symbols Rounded' !important; }
+        [data-testid="stSidebarCollapseButton"] [data-testid="stIconMaterial"]::before, [data-testid="stSidebarCollapseButton"] [data-testid="stIconMaterial"]::after, [data-testid="stSidebarCollapsedControl"] [data-testid="stIconMaterial"]::before, [data-testid="stSidebarCollapsedControl"] [data-testid="stIconMaterial"]::after { content:none !important; }
+        [data-testid="stNavSectionHeader"] [data-testid="stIconMaterial"] { position:relative; display:inline-block; width:1rem; height:1rem; font-size:1rem !important; color:inherit !important; font-family:'Material Symbols Rounded' !important; text-indent:0; overflow:visible; }
         section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] button[data-testid="stBaseButton-headerNoPadding"], section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] button[data-testid="stBaseButton-headerNoPadding"]:hover { background:transparent !important; background-color:transparent !important; background-image:none !important; border:0 !important; box-shadow:none !important; color:__SIDEBAR_TEXT__ !important; padding:.4rem !important; }
         [data-testid="stSidebarCollapseButton"], [data-testid="stSidebarCollapseButton"] > *, [data-testid="stSidebarCollapseButton"] button > * { background:transparent !important; background-image:none !important; border:0 !important; box-shadow:none !important; }
         [data-testid="stSidebarCollapsedControl"], [data-testid="stSidebarCollapsedControl"] > *, [data-testid="stSidebarCollapsedControl"] button, [data-testid="stSidebarCollapsedControl"] button > * { background:transparent !important; background-image:none !important; border:0 !important; box-shadow:none !important; color:__SIDEBAR_TEXT__ !important; }
@@ -84,9 +114,11 @@ def apply_theme() -> None:
         [data-testid="stMetric"] { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:1rem 1.1rem; box-shadow:0 2px 8px rgba(23,60,30,.06); }
         [data-testid="stMetricLabel"] { color:var(--muted); }
         [data-testid="stMetricValue"] { color:var(--navy); font-family:'DM Sans', sans-serif; }
-        .stButton > button, .stDownloadButton > button, [data-testid^="stBaseButton-"] { background:var(--panel) !important; color:var(--ink) !important; border:1px solid var(--line) !important; border-radius:5px; font-family:'DM Sans', sans-serif !important; font-weight:600; }
-        .stButton > button:hover, .stDownloadButton > button:hover, [data-testid^="stBaseButton-"]:hover { background:var(--line) !important; border-color:var(--teal) !important; color:var(--ink) !important; }
-        .stButton > button[kind="primary"], [data-testid="stBaseButton-primary"] { background:var(--teal) !important; border-color:var(--teal) !important; color:__BUTTON_TEXT__ !important; }
+        .stButton > button, .stDownloadButton > button, [data-testid^="stBaseButton-"] { background:var(--panel) !important; color:var(--ink) !important; border:1.5px solid #111111 !important; border-color:#111111 !important; border-radius:8px; font-family:'DM Sans', sans-serif !important; font-weight:600; box-shadow:0 5px 14px rgba(17, 17, 17, 0.12), inset 0 1px 0 rgba(255,255,255,0.16); transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease, background-color .12s ease; }
+        .stButton > button:hover, .stDownloadButton > button:hover, [data-testid^="stBaseButton-"]:hover { background:var(--line) !important; border-color:#111111 !important; color:var(--ink) !important; box-shadow:0 10px 22px rgba(17, 17, 17, 0.16), inset 0 1px 0 rgba(255,255,255,0.18); transform:translateY(-1px); }
+        .stButton > button:active, .stDownloadButton > button:active, [data-testid^="stBaseButton-"]:active { transform:translateY(0); box-shadow:0 5px 14px rgba(17, 17, 17, 0.12); }
+        .stButton > button[kind="primary"], [data-testid="stBaseButton-primary"] { background:var(--teal) !important; border:1.5px solid #111111 !important; border-color:#111111 !important; color:__BUTTON_TEXT__ !important; box-shadow:0 8px 20px rgba(17, 17, 17, 0.18), inset 0 1px 0 rgba(255,255,255,0.22); }
+        .stButton > button[kind="primary"]:hover, [data-testid="stBaseButton-primary"]:hover { background:linear-gradient(180deg, #4f9a65 0%, var(--teal) 100%) !important; border-color:#111111 !important; box-shadow:0 10px 24px rgba(17, 17, 17, 0.20), inset 0 1px 0 rgba(255,255,255,0.25); }
         .stButton > button[kind="primary"] *, [data-testid="stBaseButton-primary"] * { color:__BUTTON_TEXT__ !important; }
         [data-testid="stDataFrame"] { border:1px solid var(--line); }
         [data-testid="stTextInput"] input, [data-testid="stNumberInput"] input, [data-baseweb="select"] > div, [role="combobox"] { background:var(--panel) !important; color:var(--ink) !important; border:1px solid var(--line); border-radius:5px; font-family:'DM Sans', sans-serif !important; }

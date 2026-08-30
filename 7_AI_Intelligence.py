@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from data_loader import load_data
-from ui import apply_theme, render_chart
+from ui import apply_theme, get_setting, get_setting_bool, render_chart
 
 apply_theme()
 
@@ -12,11 +12,11 @@ apply_theme()
 
 st.set_page_config(
     page_title="AI Intelligence Report",
-    page_icon="🧠",
+    page_icon="◌",
     layout="wide"
 )
 
-st.title("🧠 AI Intelligence Report")
+st.title("◌ AI Intelligence Report")
 
 st.markdown("""
 Generate an AI-assisted intelligence summary from the
@@ -28,6 +28,10 @@ Global Terrorism Database (GTD).
 # -------------------------------------------------
 
 df = load_data()
+
+report_format = get_setting("default_report_format", "PDF")
+include_charts = get_setting_bool("include_charts", True)
+include_tables = get_setting_bool("include_tables", True)
 
 # -------------------------------------------------
 # Sidebar Filters
@@ -104,13 +108,13 @@ weapon_types = (
 avg_killed = df["nkill"].fillna(0).mean()
 
 if avg_killed < 2:
-    threat = "LOW 🟢"
+    threat = "LOW"
 
 elif avg_killed < 5:
-    threat = "MEDIUM 🟡"
+    threat = "MEDIUM"
 
 else:
-    threat = "HIGH 🔴"
+    threat = "HIGH"
 
 # -------------------------------------------------
 # Dashboard Metrics
@@ -172,43 +176,45 @@ The most frequently used weapon is
 
 st.info(summary)
 
-# -------------------------------------------------
-# Top Countries
-# -------------------------------------------------
+if get_setting_bool("enable_report_notifications", False):
+    st.toast("AI intelligence report refreshed using the current settings.")
 
-st.subheader("Top 10 High-Risk Countries")
+if include_charts:
+    # -------------------------------------------------
+    # Top Countries
+    # -------------------------------------------------
+    st.subheader("Top 10 High-Risk Countries")
+    fig = px.bar(
+        top_countries,
+        x=top_countries.values,
+        y=top_countries.index,
+        orientation="h",
+        labels={
+            "x":"Incidents",
+            "y":"Country"
+        }
+    )
+    render_chart(fig, use_container_width=True)
 
-fig = px.bar(
-    top_countries,
-    x=top_countries.values,
-    y=top_countries.index,
-    orientation="h",
-    labels={
-        "x":"Incidents",
-        "y":"Country"
-    }
-)
+    # -------------------------------------------------
+    # Terrorist Groups
+    # -------------------------------------------------
+    st.subheader("Most Active Terrorist Groups")
+    fig2 = px.bar(
+        top_groups,
+        x=top_groups.values,
+        y=top_groups.index,
+        orientation="h",
+        labels={
+            "x":"Attacks",
+            "y":"Group"
+        }
+    )
+    render_chart(fig2, use_container_width=True)
 
-render_chart(fig, use_container_width=True)
-
-# -------------------------------------------------
-# Terrorist Groups
-# -------------------------------------------------
-
-st.subheader("Most Active Terrorist Groups")
-
-fig2 = px.bar(
-    top_groups,
-    x=top_groups.values,
-    y=top_groups.index,
-    orientation="h",
-    labels={
-        "x":"Attacks",
-        "y":"Group"
-    }
-)
-
-render_chart(fig2, use_container_width=True)
+if include_tables:
+    st.subheader("High-Risk Table Snapshot")
+    st.dataframe(pd.DataFrame({"Country": top_countries.index, "Incidents": top_countries.values}).head(10), use_container_width=True)
 
 # -------------------------------------------------
 # AI Intelligence Assessment
@@ -241,40 +247,37 @@ st.success(recommendation)
 # Download Report
 # -------------------------------------------------
 
-report = f"""
+report_sections = [
+   "AI INTELLIGENCE REPORT",
+   f"Total Incidents : {total_incidents}",
+   f"Fatalities : {total_killed}",
+   f"Injuries : {total_wounded}",
+   f"Threat Level : {threat}",
+   f"Top Country : {top_countries.index[0]}",
+   f"Top Group : {top_groups.index[0]}",
+   f"Most Common Attack : {attack_types.index[0]}",
+   f"Most Common Weapon : {weapon_types.index[0]}",
+]
+if include_charts:
+   report_sections.append("Chart Summary: Included")
+else:
+   report_sections.append("Chart Summary: Excluded")
+if include_tables:
+   report_sections.append("Table Summary: Included")
+else:
+   report_sections.append("Table Summary: Excluded")
+report_sections.append("Recommendations\n" + recommendation.strip())
+report = "\n\n".join(report_sections)
 
-==============================
-
-AI INTELLIGENCE REPORT
-
-==============================
-
-Total Incidents : {total_incidents}
-
-Fatalities : {total_killed}
-
-Injuries : {total_wounded}
-
-Threat Level : {threat}
-
-Top Country : {top_countries.index[0]}
-
-Top Group : {top_groups.index[0]}
-
-Most Common Attack :
-{attack_types.index[0]}
-
-Most Common Weapon :
-{weapon_types.index[0]}
-
-Recommendations
-
-{recommendation}
-
-"""
+format_extension = {
+   "PDF": "pdf",
+   "Word": "docx",
+   "Text": "txt",
+}.get(report_format, "txt")
 
 st.download_button(
-    "📄 Download Intelligence Report",
-    report,
-    file_name="AI_Intelligence_Report.txt"
+   "Download Intelligence Report",
+   report,
+   file_name=f"AI_Intelligence_Report.{format_extension}",
+   mime="text/plain"
 )

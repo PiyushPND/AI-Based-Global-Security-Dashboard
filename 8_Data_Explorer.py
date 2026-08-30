@@ -12,11 +12,11 @@ apply_theme()
 
 st.set_page_config(
     page_title="Data Explorer",
-    page_icon="📊",
+    page_icon="▤",
     layout="wide"
 )
 
-st.title("📊 Global Terrorism Data Explorer")
+st.title("▤ Global Terrorism Data Explorer")
 
 st.markdown("Explore, filter, visualize and download the GTD dataset.")
 
@@ -121,7 +121,7 @@ if selected_group:
 # --------------------------------------------------------
 
 search = st.text_input(
-    "🔍 Search by City or Country"
+    "Search by City or Country"
 )
 
 if search:
@@ -185,7 +185,7 @@ st.dataframe(
 csv = filtered_df.to_csv(index=False)
 
 st.download_button(
-    "📥 Download Filtered Data",
+    "Download Filtered Data",
     csv,
     file_name="Filtered_GTD_Data.csv",
     mime="text/csv"

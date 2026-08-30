@@ -9,6 +9,11 @@ page_header("Overview", "Global incident overview", "A compact read of incident 
 
 df = load_data()
 
+if st.session_state.get("enable_attack_alerts", True):
+    top_country = df["country_txt"].value_counts().head(1).index[0]
+    if top_country:
+        st.warning(f"Attack alert: {top_country} currently has the highest recorded incident volume in the selected dataset.")
+
 section("Situation summary")
 
 c1, c2, c3, c4 = st.columns(4)

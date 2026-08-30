@@ -7,11 +7,11 @@ apply_theme()
 
 st.set_page_config(
     page_title="Country Analysis",
-    page_icon="🌎",
+    page_icon="⚑",
     layout="wide"
 )
 
-st.title("🌎 Country Analysis")
+st.title("⚑ Country Analysis")
 
 df = load_data()
 
@@ -20,10 +20,13 @@ df = load_data()
 # -----------------------------
 
 countries = sorted(df["country_txt"].dropna().unique())
+default_country = st.session_state.get("default_country", "India")
+default_index = countries.index(default_country) if default_country in countries else 0
 
 country = st.sidebar.selectbox(
     "Select Country",
-    countries
+    countries,
+    index=default_index,
 )
 
 country_df = df[df["country_txt"] == country]
